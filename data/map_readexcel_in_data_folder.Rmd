@@ -24,7 +24,7 @@ Solution from https://stackoverflow.com/questions/47540471/load-multiple-excel-f
 # set up path and files list
 
 ```{r}
-file_path <- here("data")
+file_path <- here::here("data")
 
 file_list <- list.files(path = file_path, pattern='*.xlsx')
 
