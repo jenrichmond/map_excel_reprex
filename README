@@ -1,0 +1,9 @@
+README
+
+This repo is designed to help me replicate path/here problems I have been having with code that uses map and read_excel to  read in several .xlsx files, add a filename variable to each. 
+
+The code is in an Rmd document and works when the .Rmd is located within the data folder (map_readexcel_in_data_folder.Rmd). But when I try and run the same code outside of the data folder (map_readexcel_in_project_folder.Rmd), it throws an error.
+
+Error: `path` does not exist: ‘fruitdata1.xlsx’
+
+It definitely smells like a project/filepath/here::here problem, but I can't work it out. 
