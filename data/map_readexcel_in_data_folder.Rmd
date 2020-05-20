@@ -1,0 +1,50 @@
+---
+title: "add filename"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# load packages
+```{r}
+library(readxl)
+library(tidyverse)
+library(here)
+library(janitor)
+
+```
+
+Goal: to read in multiple excel files, adding a filename variable to each. 
+
+Solution from https://stackoverflow.com/questions/47540471/load-multiple-excel-files-and-name-object-after-a-file-name
+
+# set up path and files list
+
+```{r}
+file_path <- here("data")
+
+file_list <- list.files(path = file_path, pattern='*.xlsx')
+
+```
+
+#### A. map read_excel
+
+Take the list of files, read_excel each file A1:D5, adding a filename variable, return a list. 
+
+```{r}
+
+list_raw <- file_list %>% 
+  map(~ read_excel(path = .x, range = "A1:D5")  %>%
+        mutate("file_name" = .x))
+
+```
+
+```{r}
+# test that your list items are what you want 
+fruitdata1 <- list_raw[[1]]
+```
+
+
