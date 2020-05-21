@@ -1,6 +1,6 @@
 ---
 title: "map read_excel reprex"
-output: md_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -9,27 +9,39 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = TRUE)
 
 
 # load packages
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(readxl)
 library(tidyverse)
 library(here)
 ```
 
-Goal to read in multiple excel files, adding a filename variable to each. 
+I have mutliple excel files that live in a data folder. I want to read them all into R, adding a filename variable to each. I found the original solution to the problem at this [stackflow link](https://stackoverflow.com/questions/47540471/load-multiple-excel-files-and-name-object-after-a-file-name)
 
-Solution from https://stackoverflow.com/questions/47540471/load-multiple-excel-files-and-name-object-after-a-file-name
-
-# set up path and files list
-
-Use here::here to define path to data
+# Original solution
 
 ```{r}
+# define a path where the data lives
+
 file_path <- here("data")
 
+# get a list of files at that file_path
 file_list <- list.files(path = file_path, pattern='*.xlsx')
-```
 
-Here's a troubleshooting chunk that reveals working directory and `file_list`. The path problem is going to be that `list.files()`, by default, only returns file names. But you need a path relative to whatever the working directory will be at render time or, even better, a resilient path determined at render time by here.
+# use map to read_excel all of those files, adding a file_name variable to each one
+
+list_raw <- file_list %>% 
+  map(~ read_excel(path = .x, range = "A1:C5")  %>%
+        mutate("file_name" = .x))
+
+```
+This error had me stumped so I reproduced the problem using some dummy fruit data and made a git repo. Jenny Bryan VERY kindly came up with lots of different options for solving the problem. I know MUCH more about working with file paths as a result. 
+I've added my two cents and Q and A to Jenny's solutions below in case these options are useful to anyone else. Thanks again, Jenny- you are the best!
+
+
+# Trouble shooting the error 
+## 6 options to deal with paths (by Jenny Bryan)
+
+Here's a troubleshooting chunk that reveals the working directory and `file_list`. The path problem is going to be that `list.files()`, by default, only returns file names. But you need a path relative to whatever the working directory will be at render time or, even better, a resilient path determined at render time by here.
 
 ```{r}
 getwd()
@@ -39,53 +51,69 @@ file_list
 file.exists(file_list)
 ```
 
-#### map read_excel
 
-Take the list of files, read_excel each file A1:D5, adding a filename variable, return a list. 
+#### Option 1
 
-```{r}
-list_raw <- file_list %>% 
-  map(~ read_excel(path = .x, range = "A1:D5")  %>%
-        mutate("file_name" = .x))
-
-```
-
-```{r}
-# test that your list items are what you want 
-fruitdata1 <- list_raw[[1]]
-```
-
-### Various fixes for the path problems
-
-Use `path = here("data", .x)` inside `read_excel()`:
+Be explicit about the path, using `path = here("data", .x)` inside `read_excel()`
 
 ```{r}
 file_list %>% 
-  map(~ read_excel(path = here("data", .x), range = "A1:D5")  %>%
+  map(~ read_excel(path = here("data", .x), range = "A1:C5")  %>%
         mutate("file_name" = .x))
 
 ```
 
+#### Option 2
+
 Use `here("data", .x)` on `file_list` on the way in. Now you'll want to use `basename()` on the paths before adding to the data frame.
+
 ```{r}
 file_list %>% 
   here("data", .) %>% 
-  map(~ read_excel(path = .x, range = "A1:D5")  %>%
+  map(~ read_excel(path = .x, range = "A1:C5")  %>%
         mutate("file_name" = basename(.x)))
 
 ```
+
+> Q: What does [basename](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/basename) do? 
+
+> A: removes all of the path up to and including the last path separator (if any). Without it, the filename column ends up having the whole path listed (/Users/jenny/Desktop/map_excel_reprex/data/fruitdata1.xlsx)
+
+#### Option 3 
 
 Use `list.files(full.names = TRUE)` when capturing the file paths. Again, use `basename()` on the paths before adding to the data frame.
 
+Remember- here is how I made the first file_list. It is just a list of file names. 
 ```{r}
+file_list1 <- list.files(path = file_path, pattern='*.xlsx')
+
+file_list1
+
+```
+Here is how JennyB suggests you make a file list. Specifying full.names = TRUE gets the whole path. 
+```{r}
+
 file_list2 <- list.files(path = here("data"), pattern='*.xlsx', full.names = TRUE)
+
 file_list2
+```
+
+Using the file_list2 (with the whole path) and then basename (to strip the bit of the path you dont need in the filename column). 
+```{r}
 
 file_list2 %>% 
-  map(~ read_excel(path = .x, range = "A1:D5")  %>%
+  map(~ read_excel(path = .x, range = "A1:C5")  %>%
         mutate("file_name" = basename(.x)))
 
 ```
+
+#### Option 4
+
+The `fs` package has useful functions for dealing with path issues. 
+
+> Q: What does `fs` stand for?
+
+> A: File systems; the `fs` package is a cross-platform interface to file system operations
 
 Use `fs::dir_ls()` instead of `list.files()`, which IMO has better defaults than `list.files()`. Now we'll switch to `fs::path_file()` to shorten the paths before adding to the data frame.
 
@@ -93,31 +121,52 @@ Use `fs::dir_ls()` instead of `list.files()`, which IMO has better defaults than
 library(fs)
 
 file_list_fs <- dir_ls(here("data"), glob = "*.xlsx")
+
 file_list_fs
+```
+> Q: what is "glob"?
+
+> A: glob patterns specify sets of filenames with wildcard characters, see [Wikipedia](https://en.wikipedia.org/wiki/Glob_(programming)
+
+```{r}
 
 file_list_fs %>% 
-  map(~ read_excel(path = .x, range = "A1:D5")  %>%
-        mutate("file_name" = path_file(.x)))
+  map(~ read_excel(path = .x, range = "A1:C5")  %>%
+        mutate("file_name" = fs::path_file(.x)))
 
 ```
+
+
+#### Option 5
 
 If `data` held *only* Excel files you could use `fs::dir_map()`. But it won't work as long as that `.Rmd` is in there.
 
 ```{r eval = FALSE}
+
 foo <- function(full_path) {
-  read_excel(path = full_path, range = "A1:D5") %>%
+  read_excel(path = full_path, range = "A1:C5") %>%
     mutate("file_name" = path_file(full_path))
 }
+
 dir_map("data", foo)
 ```
+
+
+#### Option 6 
 
 I suspect you will eventually want to row bind these data frames? In that case, I think the most pleasing work flow is with `purrr::map_dfr()`. If your paths are well-named from the start, its `id` argument accomplishes what you doing with `mutate()`.
 
 ```{r}
+# define list of files including path
 file_list_fs <- dir_ls(here("data"), glob = "*.xlsx")
+
+# pull just the filenames from that list of paths using path_file()
 names(file_list_fs) <- path_file(file_list_fs)
 
 file_list_fs %>% 
-  map_dfr(~ read_excel(path = .x, range = "A1:D5"), .id = "file_name")
+  map_dfr(~ read_excel(path = .x, range = "A1:C5"), .id = "file_name")
 ```
 
+> Q: I know that map_df() returns a dataframe, what does map_dfr() do?
+
+> A: Requires dplyr to be installed and creates a df by row binding. There is also a map_dfc() function that does the same binding by columns. [More info here](https://purrr.tidyverse.org/reference/map.html)
