@@ -7,3 +7,8 @@ The code is in an Rmd document and works when the .Rmd is located within the dat
 Error: `path` does not exist: ‘fruitdata1.xlsx’
 
 It definitely smells like a project/filepath/here::here problem, but I can't work it out. 
+
+
+UPDATE: it was a smelly path problem but thanks to Jenny Bryan I now know lots more about paths. Check out the many solutions here: 
+
+https://jenrichmond.github.io/map_excel_reprex/
